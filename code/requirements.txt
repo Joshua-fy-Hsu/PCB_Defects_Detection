@@ -1,9 +1,14 @@
 torch
 torchvision
 torchaudio
-ultralytics
+# YOLOv12 原版 fork（含 AAttn 的 qk/v 分離結構，與訓練權重相容）
+# 不要裝官方 ultralytics，會因為 AAttn 模組結構不同而無法載入權重
+ultralytics @ git+https://github.com/sunsmarterjie/yolov12.git
+huggingface_hub
 opencv-python
 matplotlib
 pandas
 seaborn
 tqdm
+streamlit
+plotly

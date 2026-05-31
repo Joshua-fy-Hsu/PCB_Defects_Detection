@@ -1,0 +1,60 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 虛擬環境 ----------
+venv/
+.venv/
+env/
+.env
+
+# ---------- IDE / 編輯器 ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 資料集（從 Roboflow 重新下載） ----------
+dataset/
+
+# ---------- 訓練輸出（只保留 enhanced 必要檔案） ----------
+runs/baseline/
+runs/enhanced/*
+!runs/enhanced/weights/
+runs/enhanced/weights/last.pt
+!runs/enhanced/results.csv
+!runs/enhanced/results.png
+!runs/enhanced/confusion_matrix.png
+!runs/enhanced/confusion_matrix_normalized.png
+!runs/enhanced/F1_curve.png
+!runs/enhanced/P_curve.png
+!runs/enhanced/R_curve.png
+!runs/enhanced/PR_curve.png
+!runs/enhanced/args.yaml
+runs/enhanced/train_batch*.jpg
+runs/enhanced/val_batch*.jpg
+runs/enhanced/labels*.jpg
+
+# Dashboard 自動產生的檢測紀錄
+outputs/inspection_log.csv
+
+# Streamlit cache
+.streamlit/
+
+# ---------- 暫存與草稿 ----------
+command.txt
+*.log
+*.tmp

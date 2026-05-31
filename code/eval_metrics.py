@@ -41,5 +41,4 @@ def summarize_results(csv_path: str):
 
 if __name__ == "__main__":
     print("=== Evaluating YOLOv12 Results ===")
-    summarize_results("./runs/baseline/results.csv")
     summarize_results("./runs/enhanced/results.csv")

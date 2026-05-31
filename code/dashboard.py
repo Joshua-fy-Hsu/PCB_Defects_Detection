@@ -72,8 +72,8 @@ def init_state() -> None:
         "consec_fail": 0,
         "alarm_active": False,
         "conf_threshold": 0.25,
-        "last_image": None,
-        "last_record": None,
+        "images": {},          # board_id -> annotated PIL.Image
+        "selected_board": None, # 使用者於 sidebar 選擇要檢視的 board_id
     }
     for k, v in defaults.items():
         st.session_state.setdefault(k, v)
@@ -108,8 +108,26 @@ with st.sidebar:
             st.session_state[k] = [] if isinstance(st.session_state[k], list) else (
                 False if isinstance(st.session_state[k], bool) else 0
             )
-        st.session_state.last_image = None
-        st.session_state.last_record = None
+        st.session_state.images = {}
+        st.session_state.selected_board = None
+
+    # 已檢測 PCB 選擇器（檢測中自動跟隨；閒置時可任選）
+    if st.session_state.results:
+        st.divider()
+        st.subheader("檢視 PCB")
+        board_ids = [r["board_id"] for r in st.session_state.results]
+        default_idx = (
+            len(board_ids) - 1
+            if st.session_state.running or st.session_state.selected_board is None
+            else board_ids.index(st.session_state.selected_board)
+            if st.session_state.selected_board in board_ids else len(board_ids) - 1
+        )
+        st.session_state.selected_board = st.selectbox(
+            f"選擇要檢視的 PCB（共 {len(board_ids)} 片）",
+            board_ids, index=default_idx,
+            disabled=st.session_state.running,
+            help="檢測中會自動顯示最新一片；暫停／結束後可任意瀏覽",
+        )
 
     st.divider()
     st.caption(f"模型：`{MODEL_PATH.relative_to(REPO_ROOT)}`")
@@ -345,13 +363,20 @@ if st.session_state.running and st.session_state.index < total_images:
         st.session_state.consec_fail = 0
     st.session_state.alarm_active = st.session_state.consec_fail >= 3
     st.session_state.index += 1
-    st.session_state.last_image = record["image"]
-    st.session_state.last_record = {k: v for k, v in record.items() if k != "image"}
+    st.session_state.images[record["board_id"]] = record["image"]
+    st.session_state.selected_board = record["board_id"]
 
-if st.session_state.last_image is not None:
-    rec = st.session_state.last_record
-    render_image(st.session_state.last_image, rec["board_id"],
-                 rec["verdict"], rec["classes"])
+# ---------- 顯示選定 PCB ----------
+if st.session_state.results:
+    target_id = (
+        st.session_state.selected_board
+        or st.session_state.results[-1]["board_id"]
+    )
+    rec = next((r for r in st.session_state.results if r["board_id"] == target_id),
+               st.session_state.results[-1])
+    img = st.session_state.images.get(rec["board_id"])
+    if img is not None:
+        render_image(img, rec["board_id"], rec["verdict"], rec["classes"])
 else:
     image_box.info("👈 請於左側點擊「啟動」開始模擬產線")
 

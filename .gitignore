@@ -27,6 +27,9 @@ env/
 Thumbs.db
 desktop.ini
 
+# ---------- 文件與簡報（不公開） ----------
+docs/
+
 # ---------- 資料集（從 Roboflow 重新下載） ----------
 dataset/
 

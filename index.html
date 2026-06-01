@@ -368,14 +368,14 @@
       </div>
 
       <!-- Charts -->
-      <div class="mt-10 grid lg:grid-cols-2 gap-6">
+      <div class="mt-10 space-y-6">
         <figure class="reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white">
           <img loading="lazy" src="outputs/enhanced/results.png" alt="Training and validation curves" class="w-full" />
           <figcaption class="p-4 bg-slate-900/80 text-sm text-slate-400">
             <span class="font-semibold text-white">Training &amp; validation trends.</span> Box, classification, and DFL losses converge smoothly over 100 epochs; validation mAP rises steadily and flattens — no divergence.
           </figcaption>
         </figure>
-        <figure class="reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white">
+        <figure class="reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white max-w-xl mx-auto">
           <img loading="lazy" src="outputs/enhanced/confusion_matrix.png" alt="Confusion matrix" class="w-full" />
           <figcaption class="p-4 bg-slate-900/80 text-sm text-slate-400">
             <span class="font-semibold text-white">Confusion matrix.</span> Strong on short circuit and missing hole (&gt;90% TP). A few false positives where solder pads or silkscreen resemble defects.

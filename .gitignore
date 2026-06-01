@@ -20,7 +20,10 @@ env/
 .idea/
 *.swp
 *.swo
+
+# ---------- Claude Code（不公開） ----------
 .claude/
+CLAUDE.md
 
 # ---------- OS ----------
 .DS_Store
@@ -32,6 +35,11 @@ docs/
 
 # ---------- 資料集（從 Roboflow 重新下載） ----------
 dataset/
+
+# ---------- baseline（MVI 版本已移除，只保留 enhanced） ----------
+configs/yolov12_baseline.yaml
+metrics/baseline/
+outputs/baseline/
 
 # ---------- 訓練輸出（只保留 enhanced 必要檔案） ----------
 runs/baseline/

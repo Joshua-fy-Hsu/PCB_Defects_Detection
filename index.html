@@ -4,50 +4,120 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PCB Defect Detection · YOLOv12 AOI Inspection</title>
-  <meta name="description" content="A YOLOv12-based automatic optical inspection (AOI) pipeline that detects four classes of PCB defects — missing hole, mouse bite, open circuit, and short circuit. Machine Vision Inspection final project." />
+  <meta name="description" content="A YOLOv12-based automatic optical inspection (AOI) pipeline detecting four classes of PCB defects. Machine Vision Inspection final project." />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
             sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
           },
-          colors: { mhole: '#EF4444', mbite: '#F59E0B', ocirc: '#3B82F6', scirc: '#8B5CF6' },
+          colors: {
+            ink: { 950: '#0A0F1C', 900: '#0F172A', 850: '#131B2E', 800: '#1E293B' },
+            accent: { DEFAULT: '#34D399', soft: '#10B981', faint: '#064E3B' },
+          },
+          letterSpacing: { ultra: '0.22em' },
         },
       },
     };
   </script>
   <style>
-    body { background-color: #131d33; }
-    .grid-bg {
+    html { scrollbar-color: #334155 #0A0F1C; }
+    body { background-color: #0A0F1C; }
+
+    /* Subtle dotted grid + spotlight */
+    .hero-bg {
       background-image:
-        radial-gradient(circle at 50% 0%, rgba(16,185,129,0.12), transparent 55%),
-        linear-gradient(to right, rgba(148,163,184,0.06) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(148,163,184,0.06) 1px, transparent 1px);
-      background-size: 100% 100%, 44px 44px, 44px 44px;
+        radial-gradient(circle at 50% 0%, rgba(52,211,153,0.10), transparent 55%),
+        radial-gradient(circle at 0% 100%, rgba(56,189,248,0.04), transparent 50%),
+        radial-gradient(rgba(148,163,184,0.10) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 22px 22px;
+      background-position: 0 0, 0 0, 0 0;
     }
-    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+    .section-bg-soft {
+      background:
+        radial-gradient(1200px 400px at 50% 0%, rgba(52,211,153,0.04), transparent 60%);
+    }
+
+    /* Glass card */
+    .glass {
+      background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(6px);
+    }
+    .glass:hover { border-color: rgba(52,211,153,0.30); }
+
+    /* Eyebrow label */
+    .eyebrow {
+      letter-spacing: 0.22em;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #34D399;
+    }
+    .eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 1px;
+      background: #34D399;
+      vertical-align: middle;
+      margin-right: 10px;
+      transform: translateY(-2px);
+    }
+
+    /* Reveal */
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); }
     .reveal.in { opacity: 1; transform: none; }
-    .bar-fill { transition: width 1.2s cubic-bezier(.16,1,.3,1); }
-    ::selection { background: #10b981; color: #03130d; }
-    html { scrollbar-color: #334155 #131d33; }
-    .eyebrow { letter-spacing: .18em; }
+
+    .bar-fill { transition: width 1.4s cubic-bezier(.16,1,.3,1); }
+
+    /* Numbered section indicator */
+    .sec-num {
+      font-family: 'JetBrains Mono', monospace;
+      color: rgba(148,163,184,0.55);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+    }
+
+    /* Defect color dots */
+    .dot-mhole { background: #EF4444; }
+    .dot-mbite { background: #F59E0B; }
+    .dot-ocirc { background: #3B82F6; }
+    .dot-scirc { background: #A855F7; }
+
+    /* Subtle hairline divider */
+    .hairline { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent); }
+
+    ::selection { background: rgba(52,211,153,0.35); color: #fff; }
+
+    /* Hide scrollbar in code block but keep scrollable */
+    pre::-webkit-scrollbar { height: 6px; }
+    pre::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.20); border-radius: 4px; }
   </style>
 </head>
 <body class="font-sans text-slate-300 antialiased">
 
-  <!-- ===================== NAV ===================== -->
-  <header class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-slate-950/70 border-b border-white/5">
-    <nav class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-      <a href="#top" class="flex items-center gap-2 font-bold text-white tracking-tight">
-        <span class="text-emerald-400 text-xl">◳</span><span>PCB<span class="text-emerald-400">·</span>AOI</span>
+  <!-- ───────── NAV ───────── -->
+  <header class="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-ink-950/75 border-b border-white/5">
+    <nav class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-2.5 font-bold text-white tracking-tight text-[15px]">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="3" width="18" height="18" rx="2" class="text-accent" />
+          <circle cx="8" cy="8" r="1.2" fill="currentColor" class="text-accent"/>
+          <circle cx="16" cy="8" r="1.2" fill="currentColor" class="text-accent"/>
+          <circle cx="8" cy="16" r="1.2" fill="currentColor" class="text-accent"/>
+          <circle cx="16" cy="16" r="1.2" fill="currentColor" class="text-accent"/>
+          <path d="M8 8h8M8 16h8" class="text-accent"/>
+        </svg>
+        <span>PCB<span class="text-accent">·</span>AOI</span>
       </a>
-      <div class="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-400">
+      <div class="hidden lg:flex items-center gap-7 text-[13px] font-medium text-slate-400">
         <a href="#object" class="hover:text-white transition">Object</a>
         <a href="#method" class="hover:text-white transition">Method</a>
         <a href="#flow" class="hover:text-white transition">Flow</a>
@@ -57,268 +127,417 @@
         <a href="#references" class="hover:text-white transition">References</a>
       </div>
       <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener"
-         class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 transition px-4 py-2 rounded-lg">
+         class="inline-flex items-center gap-2 text-[13px] font-semibold text-white bg-white/[0.07] hover:bg-white/[0.14] border border-white/10 transition px-3.5 py-2 rounded-lg">
         <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
         GitHub
       </a>
     </nav>
   </header>
 
-  <!-- ===================== 01 · TITLE / HERO ===================== -->
-  <section id="top" class="grid-bg pt-32 pb-24 px-6 relative overflow-hidden">
-    <div class="max-w-6xl mx-auto text-center relative">
-      <span class="inline-flex items-center gap-2 text-xs font-semibold eyebrow uppercase text-emerald-300 bg-emerald-500/10 ring-1 ring-emerald-500/30 px-3 py-1 rounded-full">
-        Machine Vision Inspection · Final Project 2026
-      </span>
-      <h1 class="mt-7 text-4xl sm:text-6xl font-extrabold text-white leading-tight tracking-tight">
-        PCB Defect Detection<br class="hidden sm:block" />
-        <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent">with YOLOv12</span>
-      </h1>
-      <p class="mt-6 max-w-2xl mx-auto text-lg text-slate-400 leading-relaxed">
-        <strong class="text-slate-200">Detection target:</strong> four critical printed-circuit-board defects.
-        <strong class="text-slate-200">Method:</strong> a YOLOv12 deep-learning detector packaged as a simulated
-        <strong class="text-slate-200">Automatic Optical Inspection (AOI)</strong> station.
-      </p>
-      <p class="mt-5 text-slate-400">National Taipei University · Dept. of Electrical Engineering</p>
-      <p class="mt-1 text-slate-400">Author — <span class="text-white font-semibold">411287004 許豐有</span></p>
+  <!-- ───────── HERO ───────── -->
+  <section id="top" class="hero-bg pt-36 pb-28 px-6 relative overflow-hidden">
+    <div class="max-w-7xl mx-auto relative">
+      <div class="grid lg:grid-cols-[1.1fr_1fr] gap-16 items-center">
 
-      <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
-        <a href="#results" class="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 transition text-slate-950 font-bold shadow-lg shadow-emerald-500/20">View Results</a>
-        <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener"
-           class="px-6 py-3 rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition text-white font-semibold">Source Code →</a>
-      </div>
+        <!-- Left: text -->
+        <div>
+          <span class="inline-flex items-center gap-2 text-[11px] font-semibold tracking-ultra uppercase text-accent bg-accent/10 ring-1 ring-accent/30 px-3 py-1.5 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+            Machine Vision Inspection — Final Project 2026
+          </span>
 
-      <div class="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 rounded-2xl overflow-hidden ring-1 ring-white/10 max-w-4xl mx-auto">
-        <div class="bg-slate-950/60 px-6 py-7"><div class="text-3xl sm:text-4xl font-extrabold text-emerald-400 font-mono">95.1<span class="text-xl align-top">%</span></div><div class="mt-1 text-xs uppercase eyebrow text-slate-500">Precision</div></div>
-        <div class="bg-slate-950/60 px-6 py-7"><div class="text-3xl sm:text-4xl font-extrabold text-sky-400 font-mono">92.5<span class="text-xl align-top">%</span></div><div class="mt-1 text-xs uppercase eyebrow text-slate-500">mAP@0.5</div></div>
-        <div class="bg-slate-950/60 px-6 py-7"><div class="text-3xl sm:text-4xl font-extrabold text-amber-400 font-mono">4</div><div class="mt-1 text-xs uppercase eyebrow text-slate-500">Defect Classes</div></div>
-        <div class="bg-slate-950/60 px-6 py-7"><div class="text-3xl sm:text-4xl font-extrabold text-violet-400 font-mono">~15<span class="text-lg align-top">ms</span></div><div class="mt-1 text-xs uppercase eyebrow text-slate-500">Inference / board</div></div>
-      </div>
-    </div>
-  </section>
+          <h1 class="mt-7 text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-[1.05] tracking-tight">
+            PCB defect<br />detection,<br />
+            <span class="bg-gradient-to-r from-accent via-teal-300 to-sky-400 bg-clip-text text-transparent">end&#8209;to&#8209;end.</span>
+          </h1>
 
-  <!-- ===================== OVERVIEW ===================== -->
-  <section id="overview" class="py-24 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto reveal">
-      <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">Overview</p>
-      <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">An AI inspector for the production line</h2>
-      <div class="mt-8 grid lg:grid-cols-2 gap-10 items-start">
-        <p class="text-lg text-slate-400 leading-relaxed">
-          Manual visual inspection of printed circuit boards is slow, inconsistent, and fatiguing. This project trains a
-          <strong class="text-slate-200">YOLOv12</strong> detector on an augmented PCB dataset and wraps it in a
-          <strong class="text-slate-200">simulated AOI station</strong>: test boards are streamed through the model one by one,
-          producing live PASS / FAIL verdicts, a defect-class distribution, a yield trend, and an SPC-style alarm that fires
-          after three consecutive failures — the same signals a real inline inspection cell would surface.
-        </p>
-        <ul class="space-y-4">
-          <li class="flex gap-4 p-4 rounded-xl bg-white/[0.03] ring-1 ring-white/5"><span class="text-emerald-400 text-xl">⚡</span><div><span class="font-semibold text-white">Real-time detection</span><br /><span class="text-slate-400 text-sm">~15 ms GPU inference per 512×512 board.</span></div></li>
-          <li class="flex gap-4 p-4 rounded-xl bg-white/[0.03] ring-1 ring-white/5"><span class="text-emerald-400 text-xl">🎯</span><div><span class="font-semibold text-white">High precision, low false alarms</span><br /><span class="text-slate-400 text-sm">95.1% precision keeps good boards moving.</span></div></li>
-          <li class="flex gap-4 p-4 rounded-xl bg-white/[0.03] ring-1 ring-white/5"><span class="text-emerald-400 text-xl">📈</span><div><span class="font-semibold text-white">Process feedback</span><br /><span class="text-slate-400 text-sm">Yield trend &amp; consecutive-fail alarm for SPC.</span></div></li>
-        </ul>
-      </div>
-    </div>
-  </section>
+          <p class="mt-8 max-w-xl text-lg text-slate-400 leading-relaxed">
+            A YOLOv12 detector trained on four critical PCB defect classes, packaged as a
+            <span class="text-slate-200 font-medium">simulated AOI inspection station</span> — from optics
+            to alarms.
+          </p>
 
-  <!-- ===================== 02 · INSPECTION OBJECT ===================== -->
-  <section id="object" class="py-24 px-6 border-t border-white/5 bg-slate-950/40">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">02 — Inspection Object</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">What we inspect, and how it looks</h2>
-        <p class="mt-4 max-w-3xl text-slate-400">The inspected object is a bare <strong class="text-slate-200">printed circuit board (PCB)</strong>. Understanding its visual signature — shape, color, texture — is what makes the four defect types separable.</p>
-      </div>
-
-      <!-- Board signature -->
-      <div class="mt-10 grid md:grid-cols-3 gap-5 reveal">
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <div class="text-xs uppercase eyebrow text-slate-500">Shape</div>
-          <p class="mt-3 text-slate-300 text-sm leading-relaxed">Flat rectangular board with mounting holes at the corners; dense, <strong class="text-white">periodic arrays</strong> of drilled holes/vias, straight &amp; curved copper traces, and rectangular IC footprints.</p>
-        </div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <div class="text-xs uppercase eyebrow text-slate-500">Color</div>
-          <p class="mt-3 text-slate-300 text-sm leading-relaxed"><span class="text-emerald-400 font-semibold">Green</span> solder-mask substrate with <span class="text-slate-200 font-semibold">silver-grey</span> metallic pads, traces and hole rings (HASL finish), plus occasional white silkscreen.</p>
-        </div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <div class="text-xs uppercase eyebrow text-slate-500">Texture</div>
-          <p class="mt-3 text-slate-300 text-sm leading-relaxed">Matte solder mask against <strong class="text-white">specular, glossy</strong> metal pads; highly repetitive hole/pad patterns. Defects appear as <strong class="text-white">local breaks</strong> in this regularity.</p>
-        </div>
-      </div>
-
-      <!-- Four defect classes -->
-      <h3 class="mt-14 text-lg font-semibold text-white reveal">The four target defect classes</h3>
-      <p class="text-sm text-slate-500 reveal">Boxes below are real model predictions on held-out test images, each with its confidence score.</p>
-      <div class="mt-6 grid sm:grid-cols-2 gap-6">
-        <!-- Missing hole -->
-        <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-900/60">
-          <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/01_missing_hole_12_jpg.rf.7ff6e00a55ca57709e86012989a8235c.jpg" alt="Missing hole detections" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-500" /></div>
-          <figcaption class="p-5">
-            <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-mhole shrink-0"></span><h4 class="font-bold text-white">Missing Hole</h4></div>
-            <p class="mt-2 text-sm text-slate-400">A drilled hole or via absent from the board — breaks mounting or connectivity.</p>
-            <dl class="mt-3 text-xs text-slate-500 space-y-1"><div><span class="text-slate-400 font-semibold">Shape:</span> a pad ring with no dark hole center, breaking the periodic hole grid.</div><div><span class="text-slate-400 font-semibold">Color/Texture:</span> uniform pad color where a hole shadow should be.</div></dl>
-          </figcaption>
-        </figure>
-        <!-- Mouse bite -->
-        <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-900/60">
-          <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/11_mouse_bite_09_jpg.rf.aa46bfe70096476f50030fddea59d0a4.jpg" alt="Mouse bite detections" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-500" /></div>
-          <figcaption class="p-5">
-            <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-mbite shrink-0"></span><h4 class="font-bold text-white">Mouse Bite</h4></div>
-            <p class="mt-2 text-sm text-slate-400">Small nibbled notches along a copper-trace edge caused by over-etching.</p>
-            <dl class="mt-3 text-xs text-slate-500 space-y-1"><div><span class="text-slate-400 font-semibold">Shape:</span> semicircular bites on an otherwise straight edge.</div><div><span class="text-slate-400 font-semibold">Color/Texture:</span> green mask intruding into a silver trace — jagged edge.</div></dl>
-          </figcaption>
-        </figure>
-        <!-- Open circuit -->
-        <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-900/60">
-          <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/12_open_circuit_04_jpg.rf.f361bc284492a3fbf5ed7ee5c32e0b7e.jpg" alt="Open circuit detections" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-500" /></div>
-          <figcaption class="p-5">
-            <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-ocirc shrink-0"></span><h4 class="font-bold text-white">Open Circuit</h4></div>
-            <p class="mt-2 text-sm text-slate-400">A broken conductive trace — the signal path is severed.</p>
-            <dl class="mt-3 text-xs text-slate-500 space-y-1"><div><span class="text-slate-400 font-semibold">Shape:</span> a gap interrupting a continuous line.</div><div><span class="text-slate-400 font-semibold">Color/Texture:</span> green substrate showing through where copper should be.</div></dl>
-          </figcaption>
-        </figure>
-        <!-- Short circuit -->
-        <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-900/60">
-          <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/04_short_04_jpg.rf.8050e376bcb13af09d96e95c6a410de8.jpg" alt="Short circuit detections" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-500" /></div>
-          <figcaption class="p-5">
-            <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-full bg-scirc shrink-0"></span><h4 class="font-bold text-white">Short Circuit</h4></div>
-            <p class="mt-2 text-sm text-slate-400">An unintended bridge between two traces that should stay isolated.</p>
-            <dl class="mt-3 text-xs text-slate-500 space-y-1"><div><span class="text-slate-400 font-semibold">Shape:</span> a thin filament connecting adjacent traces/pads.</div><div><span class="text-slate-400 font-semibold">Color/Texture:</span> extra silver copper crossing a green gap.</div></dl>
-          </figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== 03 · DETECTION METHOD ===================== -->
-  <section id="method" class="py-24 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">03 — Detection Method</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">Imaging system architecture</h2>
-        <p class="mt-4 max-w-3xl text-slate-400">Proposed AOI station: a controlled-lighting enclosure that captures a consistent image of every board, feeding the YOLOv12 detector.</p>
-      </div>
-
-      <div class="mt-12 grid lg:grid-cols-2 gap-6 items-start">
-        <!-- Architecture diagram -->
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <h3 class="text-lg font-semibold text-white">Station layout</h3>
-          <p class="text-sm text-slate-500 mb-6">Enclosure isolates ambient light for repeatable imaging.</p>
-          <div class="space-y-2 text-center text-sm">
-            <div class="mx-auto w-56 rounded-lg py-2 bg-slate-700/60 ring-1 ring-slate-500/40 text-slate-200 font-medium">Industrial Camera · 5 MP CMOS</div>
-            <div class="text-slate-600">▽</div>
-            <div class="mx-auto w-40 rounded-lg py-2 bg-slate-700/40 ring-1 ring-slate-500/30 text-slate-300">Telecentric Lens</div>
-            <div class="text-slate-600">▽</div>
-            <div class="mx-auto w-60 rounded-lg py-2 bg-sky-500/15 ring-1 ring-sky-500/30 text-sky-200">Coaxial Light Source</div>
-            <div class="flex justify-center items-center gap-3 pt-1">
-              <span class="rounded-md px-3 py-1 bg-emerald-500/15 ring-1 ring-emerald-500/30 text-emerald-200 text-xs">Ring Light</span>
-              <span class="text-slate-600">▽</span>
-              <span class="rounded-md px-3 py-1 bg-emerald-500/15 ring-1 ring-emerald-500/30 text-emerald-200 text-xs">Ring Light</span>
-            </div>
-            <div class="mx-auto w-40 rounded-lg py-2 bg-emerald-600/30 ring-1 ring-emerald-500/40 text-white font-semibold">PCB (target)</div>
-            <div class="mx-auto w-full rounded-lg py-2 bg-slate-700/50 ring-1 ring-slate-500/30 text-slate-300 flex items-center justify-between px-4"><span class="text-xs">Conveyor →</span><span class="text-xs text-slate-500">trigger sensor</span></div>
-            <div class="mx-auto w-full rounded-lg py-2 bg-slate-800 ring-1 ring-slate-600/40 text-slate-400 text-xs">Anti-vibration Base</div>
-            <p class="text-xs text-slate-600 pt-2">The whole assembly sits inside a dark enclosure.</p>
+          <div class="mt-6 text-sm text-slate-500 font-medium">
+            National Taipei University · Dept. of Electrical Engineering<br />
+            <span class="text-slate-300">411287004 — 許豐有</span>
           </div>
+
+          <div class="mt-10 flex flex-wrap items-center gap-3">
+            <a href="#results"
+               class="group relative inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-accent hover:bg-accent-soft transition text-ink-950 font-bold shadow-lg shadow-accent/20">
+              View Results
+              <svg class="w-4 h-4 group-hover:translate-x-0.5 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+            <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.10] transition text-white font-semibold">
+              Source Code
+            </a>
+          </div>
+        </div>
+
+        <!-- Right: featured prediction image with floating chips -->
+        <div class="relative">
+          <div class="absolute -inset-6 bg-gradient-to-br from-accent/20 via-sky-500/10 to-transparent blur-3xl rounded-full"></div>
+          <div class="relative rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
+            <img src="outputs/enhanced/sample_predictions/04_short_04_jpg.rf.8050e376bcb13af09d96e95c6a410de8.jpg"
+                 alt="YOLOv12 detection on PCB"
+                 class="w-full block" />
+            <div class="absolute inset-0 bg-gradient-to-t from-ink-950/80 via-transparent to-transparent pointer-events-none"></div>
+            <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs">
+              <span class="px-3 py-1.5 rounded-full bg-ink-950/80 ring-1 ring-white/20 text-slate-200 font-mono">Live prediction · short_circuit</span>
+              <span class="px-3 py-1.5 rounded-full bg-accent/90 text-ink-950 font-bold font-mono">conf 0.74</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KPI row -->
+      <div class="mt-24 grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/5 border-y border-white/5">
+        <div class="px-6 py-8 text-center">
+          <div class="text-4xl sm:text-5xl font-extrabold text-white font-mono tracking-tight">95.1<span class="text-2xl align-top text-slate-500">%</span></div>
+          <div class="mt-2 text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">Precision</div>
+        </div>
+        <div class="px-6 py-8 text-center">
+          <div class="text-4xl sm:text-5xl font-extrabold text-white font-mono tracking-tight">92.5<span class="text-2xl align-top text-slate-500">%</span></div>
+          <div class="mt-2 text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">mAP @ 0.5</div>
+        </div>
+        <div class="px-6 py-8 text-center">
+          <div class="text-4xl sm:text-5xl font-extrabold text-white font-mono tracking-tight">4</div>
+          <div class="mt-2 text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">Defect Classes</div>
+        </div>
+        <div class="px-6 py-8 text-center">
+          <div class="text-4xl sm:text-5xl font-extrabold text-white font-mono tracking-tight">~15<span class="text-2xl align-top text-slate-500">ms</span></div>
+          <div class="mt-2 text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">Inference / board</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 01 OBJECT ───────── -->
+  <section id="object" class="py-28 px-6 section-bg-soft">
+    <div class="max-w-7xl mx-auto">
+
+      <div class="reveal grid lg:grid-cols-[1fr_2fr] gap-12 items-end">
+        <div>
+          <div class="sec-num">/ 01</div>
+          <div class="eyebrow mt-3">Inspection Object</div>
+          <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">
+            What we inspect.
+          </h2>
+        </div>
+        <p class="text-lg text-slate-400 leading-relaxed max-w-2xl lg:justify-self-end">
+          The inspected object is a bare printed circuit board — its visual signature in
+          <span class="text-white font-medium">shape, color and texture</span> is what makes the four defect
+          types separable.
+        </p>
+      </div>
+
+      <!-- Signature -->
+      <div class="mt-14 grid md:grid-cols-3 gap-5 reveal">
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">01 · Shape</div>
+          <p class="mt-4 text-slate-300 leading-relaxed">Flat rectangular board with periodic arrays of drilled vias, straight and curved copper traces, and rectangular IC footprints.</p>
+        </div>
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">02 · Color</div>
+          <p class="mt-4 text-slate-300 leading-relaxed">Green solder-mask substrate with silver-grey metallic pads and traces (HASL finish), plus occasional white silkscreen.</p>
+        </div>
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">03 · Texture</div>
+          <p class="mt-4 text-slate-300 leading-relaxed">Matte solder mask against specular metal pads in repetitive hole/pad patterns. Defects appear as local breaks in this regularity.</p>
+        </div>
+      </div>
+
+      <!-- Defect gallery -->
+      <div class="mt-20">
+        <div class="reveal flex items-end justify-between gap-6 mb-8">
+          <div>
+            <div class="eyebrow">Four target classes</div>
+            <h3 class="mt-3 text-2xl font-bold text-white">Real predictions on held-out boards</h3>
+          </div>
+          <p class="hidden md:block text-sm text-slate-500 max-w-md">Boxes are model outputs with their confidence score. Hover to focus.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-ink-900">
+            <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/01_missing_hole_12_jpg.rf.7ff6e00a55ca57709e86012989a8235c.jpg" alt="Missing hole" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-700" /></div>
+            <figcaption class="p-5">
+              <div class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded-full dot-mhole"></span><span class="text-[10px] uppercase tracking-ultra font-bold text-slate-400">Class 01</span></div>
+              <h4 class="mt-2 text-lg font-bold text-white">Missing Hole</h4>
+              <p class="mt-1.5 text-sm text-slate-400">A drilled hole or via absent from the board — breaks mounting or connectivity.</p>
+            </figcaption>
+          </figure>
+          <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-ink-900">
+            <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/11_mouse_bite_09_jpg.rf.aa46bfe70096476f50030fddea59d0a4.jpg" alt="Mouse bite" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-700" /></div>
+            <figcaption class="p-5">
+              <div class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded-full dot-mbite"></span><span class="text-[10px] uppercase tracking-ultra font-bold text-slate-400">Class 02</span></div>
+              <h4 class="mt-2 text-lg font-bold text-white">Mouse Bite</h4>
+              <p class="mt-1.5 text-sm text-slate-400">Small nibbled notches along a copper-trace edge caused by over-etching.</p>
+            </figcaption>
+          </figure>
+          <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-ink-900">
+            <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/12_open_circuit_04_jpg.rf.f361bc284492a3fbf5ed7ee5c32e0b7e.jpg" alt="Open circuit" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-700" /></div>
+            <figcaption class="p-5">
+              <div class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded-full dot-ocirc"></span><span class="text-[10px] uppercase tracking-ultra font-bold text-slate-400">Class 03</span></div>
+              <h4 class="mt-2 text-lg font-bold text-white">Open Circuit</h4>
+              <p class="mt-1.5 text-sm text-slate-400">A broken conductive trace — the signal path is severed.</p>
+            </figcaption>
+          </figure>
+          <figure class="reveal group rounded-2xl overflow-hidden ring-1 ring-white/10 bg-ink-900">
+            <div class="overflow-hidden"><img loading="lazy" src="outputs/enhanced/sample_predictions/04_short_04_jpg.rf.8050e376bcb13af09d96e95c6a410de8.jpg" alt="Short circuit" class="w-full aspect-square object-cover group-hover:scale-105 transition duration-700" /></div>
+            <figcaption class="p-5">
+              <div class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded-full dot-scirc"></span><span class="text-[10px] uppercase tracking-ultra font-bold text-slate-400">Class 04</span></div>
+              <h4 class="mt-2 text-lg font-bold text-white">Short Circuit</h4>
+              <p class="mt-1.5 text-sm text-slate-400">An unintended bridge between two traces that should stay isolated.</p>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 02 METHOD ───────── -->
+  <section id="method" class="py-28 px-6">
+    <div class="max-w-7xl mx-auto">
+
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 02</div>
+        <div class="eyebrow mt-3">Detection Method</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">
+          Imaging system architecture.
+        </h2>
+        <p class="mt-6 text-lg text-slate-400 leading-relaxed">
+          Proposed AOI station: a controlled-lighting enclosure that captures a consistent image of every
+          board, feeding the YOLOv12 detector.
+        </p>
+      </div>
+
+      <div class="mt-16 grid lg:grid-cols-[1.05fr_1fr] gap-10 items-start">
+
+        <!-- SVG architecture -->
+        <div class="reveal rounded-2xl glass p-8">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-white">Station layout</h3>
+            <span class="text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">Side view</span>
+          </div>
+          <svg viewBox="0 0 520 400" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+            <!-- Enclosure -->
+            <rect x="20" y="20" width="480" height="360" rx="10" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 5"/>
+            <text x="35" y="42" font-family="Inter, sans-serif" font-size="11" fill="#64748B" letter-spacing="2">DARK ENCLOSURE</text>
+
+            <!-- Camera -->
+            <rect x="200" y="60" width="120" height="42" rx="6" fill="#1E293B" stroke="#475569" stroke-width="1.2"/>
+            <text x="260" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#E2E8F0" font-weight="600">Industrial Camera</text>
+            <text x="260" y="93" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">5MP CMOS</text>
+
+            <!-- Lens -->
+            <rect x="230" y="110" width="60" height="30" rx="4" fill="#1E293B" stroke="#475569" stroke-width="1.2"/>
+            <text x="260" y="129" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#CBD5E1" font-weight="600">Telecentric Lens</text>
+
+            <!-- Coaxial light -->
+            <rect x="180" y="150" width="160" height="32" rx="5" fill="rgba(56,189,248,0.10)" stroke="#38BDF8" stroke-width="1.2"/>
+            <text x="260" y="170" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#7DD3FC" font-weight="600">Coaxial Light Source</text>
+
+            <!-- Coax rays -->
+            <g stroke="#38BDF8" stroke-width="1" stroke-dasharray="3 3" opacity="0.6">
+              <line x1="210" y1="182" x2="210" y2="275"/>
+              <line x1="240" y1="182" x2="240" y2="275"/>
+              <line x1="280" y1="182" x2="280" y2="275"/>
+              <line x1="310" y1="182" x2="310" y2="275"/>
+            </g>
+
+            <!-- Ring lights -->
+            <rect x="100" y="200" width="58" height="28" rx="4" fill="rgba(52,211,153,0.10)" stroke="#34D399" stroke-width="1.2"/>
+            <text x="129" y="218" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#6EE7B7" font-weight="600">Ring Light</text>
+            <rect x="362" y="200" width="58" height="28" rx="4" fill="rgba(52,211,153,0.10)" stroke="#34D399" stroke-width="1.2"/>
+            <text x="391" y="218" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#6EE7B7" font-weight="600">Ring Light</text>
+            <g stroke="#34D399" stroke-width="1" stroke-dasharray="3 3" opacity="0.6">
+              <line x1="155" y1="228" x2="225" y2="275"/>
+              <line x1="365" y1="228" x2="295" y2="275"/>
+            </g>
+
+            <!-- PCB -->
+            <rect x="190" y="278" width="140" height="20" rx="3" fill="#16A34A" stroke="#166534" stroke-width="1.2"/>
+            <text x="260" y="293" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#fff" font-weight="700">PCB (target)</text>
+
+            <!-- Conveyor -->
+            <rect x="60" y="305" width="400" height="22" rx="3" fill="#334155" stroke="#475569" stroke-width="1.2"/>
+            <text x="80" y="320" font-family="Inter, sans-serif" font-size="11" fill="#CBD5E1" font-weight="500">Conveyor</text>
+            <text x="380" y="320" font-family="Inter, sans-serif" font-size="11" fill="#94A3B8">→ direction</text>
+
+            <!-- Sensor -->
+            <rect x="425" y="278" width="58" height="22" rx="3" fill="rgba(239,68,68,0.12)" stroke="#EF4444" stroke-width="1.2"/>
+            <text x="454" y="293" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#FCA5A5" font-weight="600">Sensor</text>
+            <line x1="425" y1="289" x2="335" y2="289" stroke="#EF4444" stroke-width="1" stroke-dasharray="2 2" opacity="0.5"/>
+
+            <!-- Base -->
+            <rect x="60" y="335" width="400" height="28" rx="3" fill="#1E293B" stroke="#475569" stroke-width="1.2"/>
+            <text x="260" y="354" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#94A3B8" font-weight="500">Anti-vibration Base</text>
+          </svg>
         </div>
 
         <!-- Spec cards -->
-        <div class="space-y-5">
-          <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-            <div class="flex items-center gap-2 text-emerald-300 font-semibold"><span>🔭</span> Field of View (FOV)</div>
-            <p class="mt-2 text-sm text-slate-400">Target board ≈ 100 × 100 mm; FOV set to ≈ 110 × 110 mm with margin. With a 5 MP sensor (≈ 2592 px wide) this yields ≈ <strong class="text-white">42 µm/pixel</strong> — fine enough to resolve sub-millimetre mouse-bites and trace breaks.</p>
+        <div class="space-y-4">
+          <div class="reveal glass rounded-2xl p-7">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-white">Field of View</h4>
+              <span class="text-[11px] uppercase tracking-ultra text-accent font-semibold">FOV</span>
+            </div>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">Target board ≈ 100 × 100 mm; FOV ≈ 110 × 110 mm with margin. A 5 MP sensor yields <span class="text-white font-mono">≈ 42 µm/pixel</span> — fine enough to resolve sub-millimetre mouse-bites.</p>
           </div>
-          <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-            <div class="flex items-center gap-2 text-emerald-300 font-semibold"><span>📷</span> Lens · Camera · Lighting</div>
-            <ul class="mt-2 text-sm text-slate-400 space-y-1.5">
-              <li><strong class="text-slate-200">Lens —</strong> telecentric, near-zero perspective distortion &amp; constant magnification for accurate measurement on a flat board.</li>
-              <li><strong class="text-slate-200">Camera —</strong> 5 MP CMOS area-scan, global shutter to freeze conveyor motion.</li>
-              <li><strong class="text-slate-200">Lighting —</strong> coaxial light for uniform reflection off copper/pads, plus low-angle ring light that casts shadows to emphasise edge defects (mouse bite / open circuit).</li>
+          <div class="reveal glass rounded-2xl p-7">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-white">Lens · Camera · Lighting</h4>
+              <span class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Optics</span>
+            </div>
+            <ul class="mt-3 text-sm text-slate-400 leading-relaxed space-y-2">
+              <li><span class="text-slate-200 font-medium">Telecentric lens</span> for near-zero perspective distortion on a flat board.</li>
+              <li><span class="text-slate-200 font-medium">Global-shutter 5 MP CMOS</span> to freeze conveyor motion.</li>
+              <li><span class="text-slate-200 font-medium">Coaxial + low-angle ring</span> reveal both flat copper and edge defects.</li>
             </ul>
           </div>
-          <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-            <div class="flex items-center gap-2 text-emerald-300 font-semibold"><span>🧠</span> Image-Processing Technique</div>
-            <p class="mt-2 text-sm text-slate-400">A single-stage <strong class="text-white">YOLOv12</strong> object detector localises and classifies all four defect types in one forward pass; non-max suppression (NMS) and a confidence threshold filter the boxes.</p>
+          <div class="reveal glass rounded-2xl p-7">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-white">Detection Algorithm</h4>
+              <span class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Model</span>
+            </div>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">Single-stage <span class="text-white font-medium">YOLOv12</span> localises and classifies all four defect types in one forward pass; NMS + confidence threshold filter the boxes.</p>
           </div>
-          <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-            <div class="flex items-center gap-2 text-emerald-300 font-semibold"><span>⚙️</span> Mechanical Design</div>
-            <p class="mt-2 text-sm text-slate-400">An <strong class="text-white">anti-vibration base</strong> (damped mounts) prevents motion blur; a conveyor with a trigger sensor synchronises capture so each board is imaged at the same position.</p>
+          <div class="reveal glass rounded-2xl p-7">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-white">Mechanical Design</h4>
+              <span class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Rig</span>
+            </div>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">An <span class="text-white font-medium">anti-vibration base</span> prevents motion blur; a triggered conveyor synchronises capture so each board is imaged at the same position.</p>
           </div>
         </div>
       </div>
 
       <!-- Training config -->
-      <div class="mt-8 reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-        <h3 class="text-lg font-semibold text-white">Model training configuration</h3>
-        <p class="text-sm text-slate-500 mb-6">100 epochs, fine-tuned from YOLOv12s pretrained weights.</p>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-4 text-sm">
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">GPU</span><span class="text-slate-200 font-medium">RTX 4060 8GB</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Framework</span><span class="text-slate-200 font-medium">PyTorch</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Optimizer</span><span class="text-slate-200 font-medium">AdamW</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Epochs</span><span class="text-slate-200 font-medium font-mono">100</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Batch size</span><span class="text-slate-200 font-medium font-mono">16</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Image size</span><span class="text-slate-200 font-medium font-mono">512²</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Pretrained</span><span class="text-slate-200 font-medium">YOLOv12s</span></div>
-          <div class="flex justify-between border-b border-white/5 pb-2"><span class="text-slate-500">Augment</span><span class="text-slate-200 font-medium">bright/flip/rot</span></div>
+      <div class="mt-10 reveal glass rounded-2xl p-8">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-bold text-white">Model training configuration</h3>
+          <span class="text-[11px] uppercase tracking-ultra text-slate-500 font-semibold">100 epochs · fine-tuned</span>
         </div>
-        <div class="mt-5 text-sm text-slate-400">Dataset: <a href="https://www.kaggle.com/datasets/akhatova/pcb-defects" target="_blank" rel="noopener" class="text-emerald-400 hover:underline">Kaggle PCB Defects</a>, augmented through Roboflow — <span class="font-mono text-slate-300">512×512</span>, splits <span class="font-mono text-slate-300">969 / 92 / 46</span> (train / val / test).</div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-3 text-sm">
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">GPU</span><span class="text-white font-medium">RTX 4060 8GB</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Framework</span><span class="text-white font-medium">PyTorch</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Optimizer</span><span class="text-white font-medium">AdamW</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Epochs</span><span class="text-white font-medium font-mono">100</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Batch size</span><span class="text-white font-medium font-mono">16</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Image size</span><span class="text-white font-medium font-mono">512²</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Pretrained</span><span class="text-white font-medium">YOLOv12s</span></div>
+          <div class="flex justify-between border-b border-white/5 pb-2.5"><span class="text-slate-500">Augment</span><span class="text-white font-medium">bright/flip/rot</span></div>
+        </div>
+        <p class="mt-6 text-sm text-slate-400">Dataset: <a href="https://www.kaggle.com/datasets/akhatova/pcb-defects" target="_blank" rel="noopener" class="text-accent hover:underline">Kaggle PCB Defects</a>, augmented via Roboflow — <span class="font-mono text-slate-300">512×512</span>, splits <span class="font-mono text-slate-300">969 / 92 / 46</span> (train / val / test).</p>
       </div>
     </div>
   </section>
 
-  <!-- ===================== 04 · DETECTION FLOW ===================== -->
-  <section id="flow" class="py-24 px-6 border-t border-white/5 bg-slate-950/40">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">04 — Detection Flow</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">From board to verdict</h2>
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 03 FLOW ───────── -->
+  <section id="flow" class="py-28 px-6 section-bg-soft">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 03</div>
+        <div class="eyebrow mt-3">Detection Flow</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">From board to verdict.</h2>
       </div>
-      <div class="mt-10 reveal flex flex-col lg:flex-row items-stretch gap-3">
-        <div class="flex-1 rounded-xl p-5 bg-sky-500/10 ring-1 ring-sky-500/20"><div class="text-sky-300 font-semibold">① Image Capture</div><div class="text-sm text-slate-400 mt-1">Industrial camera grabs a board image when the trigger sensor fires.</div></div>
-        <div class="hidden lg:flex items-center text-slate-600 text-2xl">→</div>
-        <div class="flex-1 rounded-xl p-5 bg-emerald-500/10 ring-1 ring-emerald-500/20"><div class="text-emerald-300 font-semibold">② Pre-process</div><div class="text-sm text-slate-400 mt-1">Resize to 512×512 and normalise pixel values for the network.</div></div>
-        <div class="hidden lg:flex items-center text-slate-600 text-2xl">→</div>
-        <div class="flex-1 rounded-xl p-5 bg-amber-500/10 ring-1 ring-amber-500/20"><div class="text-amber-300 font-semibold">③ YOLOv12 Inference</div><div class="text-sm text-slate-400 mt-1">One GPU forward pass (~15 ms) predicts defect boxes + classes.</div></div>
-        <div class="hidden lg:flex items-center text-slate-600 text-2xl">→</div>
-        <div class="flex-1 rounded-xl p-5 bg-violet-500/10 ring-1 ring-violet-500/20"><div class="text-violet-300 font-semibold">④ Post-process</div><div class="text-sm text-slate-400 mt-1">NMS removes duplicates; a confidence threshold filters weak boxes.</div></div>
-        <div class="hidden lg:flex items-center text-slate-600 text-2xl">→</div>
-        <div class="flex-1 rounded-xl p-5 bg-rose-500/10 ring-1 ring-rose-500/20"><div class="text-rose-300 font-semibold">⑤ Verdict + Log</div><div class="text-sm text-slate-400 mt-1">Any defect ⇒ FAIL. Result is logged; ≥3 fails raises an SPC alarm.</div></div>
+
+      <div class="mt-14 reveal">
+        <div class="grid lg:grid-cols-5 gap-4">
+          <!-- Step 1 -->
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-baseline gap-2"><span class="font-mono text-2xl font-bold text-accent">01</span><span class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Capture</span></div>
+            <h4 class="mt-3 font-bold text-white">Image Capture</h4>
+            <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">Industrial camera grabs the board when the trigger sensor fires.</p>
+          </div>
+          <!-- Step 2 -->
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-baseline gap-2"><span class="font-mono text-2xl font-bold text-accent">02</span><span class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Preprocess</span></div>
+            <h4 class="mt-3 font-bold text-white">Resize · Normalize</h4>
+            <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">Resize to 512×512 and normalise pixel values for the network.</p>
+          </div>
+          <!-- Step 3 -->
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-baseline gap-2"><span class="font-mono text-2xl font-bold text-accent">03</span><span class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Infer</span></div>
+            <h4 class="mt-3 font-bold text-white">YOLOv12</h4>
+            <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">One GPU forward pass (~15 ms) predicts defect boxes + classes.</p>
+          </div>
+          <!-- Step 4 -->
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-baseline gap-2"><span class="font-mono text-2xl font-bold text-accent">04</span><span class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Filter</span></div>
+            <h4 class="mt-3 font-bold text-white">NMS · Threshold</h4>
+            <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">Non-Max Suppression removes duplicates; confidence filter prunes weak boxes.</p>
+          </div>
+          <!-- Step 5 -->
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-baseline gap-2"><span class="font-mono text-2xl font-bold text-accent">05</span><span class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Decide</span></div>
+            <h4 class="mt-3 font-bold text-white">Verdict + Log</h4>
+            <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">Any defect ⇒ FAIL. Result logged; ≥3 consecutive fails raises SPC alarm.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== 05 · IMAGE PROCESSING (CODE) ===================== -->
-  <section id="imgproc" class="py-24 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">05 — Image Processing</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">Code &amp; its sources</h2>
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 04 IMAGE PROCESSING ───────── -->
+  <section id="imgproc" class="py-28 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 04</div>
+        <div class="eyebrow mt-3">Image Processing</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">Code &amp; its sources.</h2>
       </div>
 
       <!-- Sources -->
-      <div class="mt-10 grid sm:grid-cols-3 gap-5 reveal">
-        <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener" class="block rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10 hover:ring-emerald-500/40 transition">
-          <div class="text-xs uppercase eyebrow text-slate-500">Project repository</div>
-          <div class="mt-2 font-semibold text-white">PCB_Defects · this project</div>
-          <p class="mt-1 text-sm text-slate-400">Training / inference wrappers, AOI dashboard &amp; this site. ↗</p>
+      <div class="mt-14 grid sm:grid-cols-3 gap-4">
+        <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener"
+           class="reveal block glass rounded-2xl p-6 group">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Project repository</div>
+          <div class="mt-3 font-bold text-white text-lg">PCB_Defects</div>
+          <p class="mt-1 text-sm text-slate-400">Training / inference wrappers, AOI dashboard and this site.</p>
+          <div class="mt-4 text-sm text-accent inline-flex items-center gap-1 group-hover:gap-2 transition-all">Open repository
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </div>
         </a>
-        <a href="https://github.com/sunsmarterjie/yolov12" target="_blank" rel="noopener" class="block rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10 hover:ring-emerald-500/40 transition">
-          <div class="text-xs uppercase eyebrow text-slate-500">Model architecture</div>
-          <div class="mt-2 font-semibold text-white">sunsmarterjie / yolov12</div>
-          <p class="mt-1 text-sm text-slate-400">The YOLOv12 implementation the checkpoint was trained with. ↗</p>
+        <a href="https://github.com/sunsmarterjie/yolov12" target="_blank" rel="noopener"
+           class="reveal block glass rounded-2xl p-6 group">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Model architecture</div>
+          <div class="mt-3 font-bold text-white text-lg">sunsmarterjie / yolov12</div>
+          <p class="mt-1 text-sm text-slate-400">The YOLOv12 implementation the checkpoint was trained with.</p>
+          <div class="mt-4 text-sm text-accent inline-flex items-center gap-1 group-hover:gap-2 transition-all">Open repository
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </div>
         </a>
-        <a href="https://docs.ultralytics.com" target="_blank" rel="noopener" class="block rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10 hover:ring-emerald-500/40 transition">
-          <div class="text-xs uppercase eyebrow text-slate-500">Framework</div>
-          <div class="mt-2 font-semibold text-white">Ultralytics YOLO</div>
-          <p class="mt-1 text-sm text-slate-400">Training/predict CLI &amp; the <span class="font-mono">YOLO</span> Python API. ↗</p>
+        <a href="https://docs.ultralytics.com" target="_blank" rel="noopener"
+           class="reveal block glass rounded-2xl p-6 group">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Framework</div>
+          <div class="mt-3 font-bold text-white text-lg">Ultralytics YOLO</div>
+          <p class="mt-1 text-sm text-slate-400">Training / predict CLI and the <span class="font-mono">YOLO</span> Python API.</p>
+          <div class="mt-4 text-sm text-accent inline-flex items-center gap-1 group-hover:gap-2 transition-all">Open documentation
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </div>
         </a>
       </div>
 
-      <!-- Annotated code -->
-      <div class="mt-8 reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-slate-950/70">
-        <div class="px-5 py-3 border-b border-white/5 flex items-center gap-2 text-sm text-slate-400">
-          <span class="w-3 h-3 rounded-full bg-rose-500/70"></span><span class="w-3 h-3 rounded-full bg-amber-500/70"></span><span class="w-3 h-3 rounded-full bg-emerald-500/70"></span>
-          <span class="ml-2 font-mono">code/dashboard.py · inspect_one()</span>
+      <!-- Code window -->
+      <div class="mt-8 reveal rounded-2xl overflow-hidden border border-white/10 bg-ink-950 shadow-2xl">
+        <div class="px-5 py-3 border-b border-white/10 flex items-center gap-3 bg-ink-900/60">
+          <div class="flex gap-1.5">
+            <span class="w-3 h-3 rounded-full bg-rose-500/70"></span>
+            <span class="w-3 h-3 rounded-full bg-amber-500/70"></span>
+            <span class="w-3 h-3 rounded-full bg-accent/80"></span>
+          </div>
+          <span class="ml-2 font-mono text-xs text-slate-400">code/dashboard.py · inspect_one()</span>
         </div>
-        <pre class="p-5 overflow-x-auto text-sm leading-relaxed font-mono text-slate-300"><span class="text-slate-500"># ── INPUT ─────────────────────────────────────────────</span>
+<pre class="p-6 overflow-x-auto text-[13px] leading-7 font-mono text-slate-300"><span class="text-slate-500"># ── INPUT ─────────────────────────────────────────────</span>
 img_path = image_paths[idx]              <span class="text-slate-500"># one 512×512 PCB image</span>
 
 <span class="text-slate-500"># ── PROCESS (YOLOv12 forward pass) ────────────────────</span>
@@ -334,155 +553,287 @@ confs   = res.boxes.conf.tolist()                  <span class="text-slate-500">
 annotated = res.plot()[:, :, ::-1]                 <span class="text-slate-500"># draw boxes, BGR→RGB</span>
 
 <span class="text-slate-500"># ── OUTPUT (decision + annotated image) ───────────────</span>
-verdict = <span class="text-emerald-400">"FAIL"</span> if classes else <span class="text-emerald-400">"PASS"</span>   <span class="text-slate-500"># any defect ⇒ FAIL</span>
-return {<span class="text-emerald-400">"verdict"</span>: verdict, <span class="text-emerald-400">"classes"</span>: classes,
-        <span class="text-emerald-400">"image"</span>: annotated, <span class="text-emerald-400">"confidences"</span>: confs}</pre>
+verdict = <span class="text-accent">"FAIL"</span> if classes else <span class="text-accent">"PASS"</span>   <span class="text-slate-500"># any defect ⇒ FAIL</span>
+return {<span class="text-accent">"verdict"</span>: verdict, <span class="text-accent">"classes"</span>: classes,
+        <span class="text-accent">"image"</span>: annotated, <span class="text-accent">"confidences"</span>: confs}</pre>
       </div>
-      <p class="mt-4 text-sm text-slate-500 reveal">The pipeline reads an image, runs a single YOLOv12 inference (built-in NMS + confidence filtering), then emits the annotated image and a PASS/FAIL verdict — every result is appended to <span class="font-mono text-slate-400">outputs/inspection_log.csv</span>.</p>
+      <p class="mt-5 text-sm text-slate-500 reveal">Every result is appended to <span class="font-mono text-slate-400">outputs/inspection_log.csv</span> for traceability.</p>
     </div>
   </section>
 
-  <!-- ===================== 06 · DETECTION RESULTS ===================== -->
-  <section id="results" class="py-24 px-6 border-t border-white/5 bg-slate-950/40">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">06 — Detection Results</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">Strong, stable, no overfitting</h2>
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 05 RESULTS ───────── -->
+  <section id="results" class="py-28 px-6 section-bg-soft">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 05</div>
+        <div class="eyebrow mt-3">Detection Results</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">
+          Strong, stable, no overfitting.
+        </h2>
       </div>
 
-      <!-- Metric bars -->
-      <div class="mt-12 reveal grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="flex justify-between items-end"><span class="text-slate-400 text-sm">Precision</span><span class="font-mono font-bold text-emerald-400 text-2xl">0.9514</span></div><div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-emerald-400 rounded-full" style="width:0" data-w="95.1%"></div></div></div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="flex justify-between items-end"><span class="text-slate-400 text-sm">Recall</span><span class="font-mono font-bold text-emerald-400 text-2xl">0.8710</span></div><div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-emerald-400 rounded-full" style="width:0" data-w="87.1%"></div></div></div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="flex justify-between items-end"><span class="text-slate-400 text-sm">mAP@0.5</span><span class="font-mono font-bold text-sky-400 text-2xl">0.9254</span></div><div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-sky-400 rounded-full" style="width:0" data-w="92.5%"></div></div></div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="flex justify-between items-end"><span class="text-slate-400 text-sm">mAP@0.5–0.95</span><span class="font-mono font-bold text-violet-400 text-2xl">0.4789</span></div><div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-violet-400 rounded-full" style="width:0" data-w="47.9%"></div></div></div>
+      <!-- KPIs with bars -->
+      <div class="mt-14 reveal grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Precision</div>
+          <div class="mt-3 font-mono font-extrabold text-white text-3xl">0.9514</div>
+          <div class="mt-4 h-1.5 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-accent rounded-full" style="width:0" data-w="95.1%"></div></div>
+        </div>
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">Recall</div>
+          <div class="mt-3 font-mono font-extrabold text-white text-3xl">0.8710</div>
+          <div class="mt-4 h-1.5 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-accent rounded-full" style="width:0" data-w="87.1%"></div></div>
+        </div>
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">mAP @ 0.5</div>
+          <div class="mt-3 font-mono font-extrabold text-white text-3xl">0.9254</div>
+          <div class="mt-4 h-1.5 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-accent rounded-full" style="width:0" data-w="92.5%"></div></div>
+        </div>
+        <div class="glass rounded-2xl p-7">
+          <div class="text-[10px] uppercase tracking-ultra text-slate-500 font-semibold">mAP @ 0.5–0.95</div>
+          <div class="mt-3 font-mono font-extrabold text-white text-3xl">0.4789</div>
+          <div class="mt-4 h-1.5 rounded-full bg-white/10 overflow-hidden"><div class="bar-fill h-full bg-accent rounded-full" style="width:0" data-w="47.9%"></div></div>
+        </div>
       </div>
 
       <!-- Charts -->
-      <div class="mt-10 space-y-6">
-        <figure class="reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white">
+      <div class="mt-10 grid lg:grid-cols-[1.6fr_1fr] gap-6">
+        <figure class="reveal rounded-2xl overflow-hidden border border-white/10 bg-white">
           <img loading="lazy" src="outputs/enhanced/results.png" alt="Training and validation curves" class="w-full" />
-          <figcaption class="p-4 bg-slate-900/80 text-sm text-slate-400"><span class="font-semibold text-white">Training &amp; validation trends.</span> Box, classification, and DFL losses converge smoothly over 100 epochs; validation mAP rises steadily and flattens — no divergence.</figcaption>
+          <figcaption class="p-5 bg-ink-900 text-sm text-slate-400">
+            <span class="font-semibold text-white">Training &amp; validation trends.</span> Box, classification and DFL losses converge smoothly over 100 epochs; validation mAP rises and flattens — no divergence.
+          </figcaption>
         </figure>
-        <figure class="reveal rounded-2xl overflow-hidden ring-1 ring-white/10 bg-white max-w-xl mx-auto">
+        <figure class="reveal rounded-2xl overflow-hidden border border-white/10 bg-white">
           <img loading="lazy" src="outputs/enhanced/confusion_matrix.png" alt="Confusion matrix" class="w-full" />
-          <figcaption class="p-4 bg-slate-900/80 text-sm text-slate-400"><span class="font-semibold text-white">Confusion matrix.</span> Strong on short circuit and missing hole (&gt;90% TP). A few false positives where solder pads or silkscreen resemble defects.</figcaption>
+          <figcaption class="p-5 bg-ink-900 text-sm text-slate-400">
+            <span class="font-semibold text-white">Confusion matrix.</span> Strong on short circuit and missing hole (&gt;90% TP). A few false positives where solder pads resemble defects.
+          </figcaption>
         </figure>
       </div>
 
-      <!-- Process + qualitative -->
-      <div class="mt-10 grid lg:grid-cols-2 gap-6 reveal">
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <h3 class="font-semibold text-white">Inspection process — live AOI dashboard</h3>
-          <p class="mt-2 text-sm text-slate-400">A Streamlit dashboard (<span class="font-mono text-slate-300">code/dashboard.py</span>) streams test boards through the model one at a time, showing the live verdict, defect-class distribution, a running yield trend, and a consecutive-fail alarm — mimicking an inline inspection cell.</p>
-          <div class="mt-4 flex flex-wrap gap-2 text-xs">
-            <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20">PASS / FAIL stream</span>
-            <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20">Yield trend</span>
-            <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20">SPC alarm (≥3 fails)</span>
-            <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20">CSV log</span>
+      <!-- Dashboard preview -->
+      <div class="mt-10 reveal glass rounded-2xl p-8">
+        <div class="grid lg:grid-cols-[1fr_1.2fr] gap-8 items-center">
+          <div>
+            <div class="eyebrow">Live AOI Dashboard</div>
+            <h3 class="mt-3 text-2xl font-bold text-white">A simulated inspection cell.</h3>
+            <p class="mt-3 text-slate-400 leading-relaxed">A Streamlit dashboard streams test boards through the model one at a time — live verdict, defect-class distribution, running yield trend, and a consecutive-fail alarm mimicking an inline inspection cell.</p>
+            <div class="mt-5 flex flex-wrap gap-2 text-xs">
+              <span class="px-3 py-1.5 rounded-full bg-accent/10 text-accent ring-1 ring-accent/20 font-medium">PASS / FAIL stream</span>
+              <span class="px-3 py-1.5 rounded-full bg-accent/10 text-accent ring-1 ring-accent/20 font-medium">Yield trend</span>
+              <span class="px-3 py-1.5 rounded-full bg-accent/10 text-accent ring-1 ring-accent/20 font-medium">SPC alarm</span>
+              <span class="px-3 py-1.5 rounded-full bg-accent/10 text-accent ring-1 ring-accent/20 font-medium">CSV log</span>
+            </div>
+            <div class="mt-6 font-mono text-xs text-slate-500 p-3 rounded-lg bg-ink-950 border border-white/5">$ streamlit run code/dashboard.py</div>
+          </div>
+          <div class="rounded-xl overflow-hidden ring-1 ring-white/10">
+            <img src="outputs/enhanced/sample_predictions/01_missing_hole_12_jpg.rf.7ff6e00a55ca57709e86012989a8235c.jpg" alt="Dashboard preview" class="w-full block" />
           </div>
         </div>
-        <div class="rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <h3 class="font-semibold text-white">Final results — qualitative</h3>
-          <p class="mt-2 text-sm text-slate-400">On held-out boards the model places tight bounding boxes around real defects with high confidence (0.5–0.8), across varied lighting and orientation — see the four annotated examples in the <a href="#object" class="text-emerald-400 hover:underline">Inspection Object</a> section. Detections stay clean even on reflective copper and rotated boards.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 06 APPLICATIONS ───────── -->
+  <section id="applications" class="py-28 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 06</div>
+        <div class="eyebrow mt-3">Applications</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">Where else this transfers.</h2>
+        <p class="mt-6 text-lg text-slate-400 leading-relaxed">The same capture-then-detect recipe — controlled lighting, fixed optics, a fine-tuned detector — generalises to many surface-inspection problems.</p>
+      </div>
+      <div class="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Electronics</div>
+          <h3 class="mt-3 text-lg font-bold text-white">SMT solder joints</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Detect bridging, insufficient solder, tombstoning on populated boards.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Semiconductor</div>
+          <h3 class="mt-3 text-lg font-bold text-white">Wafer &amp; die inspection</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Locate scratches, particles and pattern defects on wafers and dies.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Display</div>
+          <h3 class="mt-3 text-lg font-bold text-white">LCD / OLED panels</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Find dead pixels, mura and line defects on display panels.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Hardware</div>
+          <h3 class="mt-3 text-lg font-bold text-white">Connectors &amp; FPC</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Inspect bent pins and flexible-PCB trace damage at high throughput.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">General QC</div>
+          <h3 class="mt-3 text-lg font-bold text-white">Surface inspection</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Metal, textile, glass or food surface defects with the same workflow.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-6">
+          <div class="text-[11px] uppercase tracking-ultra text-accent font-semibold">Extension</div>
+          <h3 class="mt-3 text-lg font-bold text-white">More PCB classes</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Add spur, spurious copper, or silkscreen OCR with more labelled data.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== 07 · APPLICATIONS ===================== -->
-  <section id="applications" class="py-24 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">07 — Applications</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">Where else this transfers</h2>
-        <p class="mt-4 max-w-3xl text-slate-400">The same capture-then-detect recipe — controlled lighting, fixed optics, a fine-tuned detector — generalises to many surface-inspection problems.</p>
-      </div>
-      <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">🔧</div><h3 class="mt-3 font-semibold text-white">SMT solder-joint inspection</h3><p class="mt-1 text-sm text-slate-400">Detect bridging, insufficient solder, tombstoning on populated boards.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">💾</div><h3 class="mt-3 font-semibold text-white">Semiconductor &amp; wafer</h3><p class="mt-1 text-sm text-slate-400">Locate scratches, particles and pattern defects on wafers and dies.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">📺</div><h3 class="mt-3 font-semibold text-white">Display panels</h3><p class="mt-1 text-sm text-slate-400">Find dead pixels, mura and line defects on LCD/OLED panels.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">🔌</div><h3 class="mt-3 font-semibold text-white">Connectors &amp; FPC</h3><p class="mt-1 text-sm text-slate-400">Inspect bent pins and flexible-PCB trace damage.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">🏭</div><h3 class="mt-3 font-semibold text-white">General surface QC</h3><p class="mt-1 text-sm text-slate-400">Metal, textile, glass or food surface defects with the same workflow.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><div class="text-2xl">➕</div><h3 class="mt-3 font-semibold text-white">Extended PCB classes</h3><p class="mt-1 text-sm text-slate-400">Add spur, spurious copper, or silkscreen-OCR with more labelled data.</p></div>
-      </div>
-    </div>
-  </section>
+  <div class="hairline max-w-7xl mx-auto"></div>
 
-  <!-- ===================== 08 · COURSE KNOWLEDGE ===================== -->
-  <section id="course" class="py-24 px-6 border-t border-white/5 bg-slate-950/40">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">08 — Course Knowledge</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">How it maps to Machine Vision Inspection</h2>
+  <!-- ───────── 07 COURSE ───────── -->
+  <section id="course" class="py-28 px-6 section-bg-soft">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 07</div>
+        <div class="eyebrow mt-3">Course Knowledge</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">Mapping to Machine Vision Inspection.</h2>
       </div>
-      <div class="mt-10 grid md:grid-cols-2 gap-5">
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">Illumination</h3><p class="mt-2 text-sm text-slate-400">Choosing coaxial vs. low-angle ring vs. diffuse light to reveal defects — directly applies the lecture material on lighting geometry and reflection.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">Optics — FOV, lens, resolution</h3><p class="mt-2 text-sm text-slate-400">Sizing the field of view, picking a telecentric lens, and computing µm/pixel spatial resolution come straight from the optics units.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">Camera &amp; acquisition</h3><p class="mt-2 text-sm text-slate-400">Sensor resolution, global vs. rolling shutter, and triggered capture relate to the camera-selection and image-acquisition topics.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">Image processing &amp; detection</h3><p class="mt-2 text-sm text-slate-400">Preprocessing (resize/normalise) and the move from classical features to a deep-learning detector extend the image-processing lectures.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">Inspection metrics</h3><p class="mt-2 text-sm text-slate-400">Precision, recall, mAP and the confusion matrix are the evaluation tools taught for judging an inspection system.</p></div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10"><h3 class="font-semibold text-emerald-300">System integration &amp; SPC</h3><p class="mt-2 text-sm text-slate-400">Packaging it as an AOI station with yield tracking and a consecutive-fail alarm applies the automation / SPC concepts.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== 09 · REFLECTION ===================== -->
-  <section id="reflection" class="py-24 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto">
-      <div class="reveal">
-        <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">09 — Reflection &amp; Contribution</p>
-        <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">What I built and learned</h2>
-      </div>
-      <div class="mt-10 grid lg:grid-cols-2 gap-6">
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <h3 class="font-semibold text-white">Reflection</h3>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">Building this end to end made the course concepts concrete: I learned that <strong class="text-slate-200">data quality and augmentation matter as much as the model</strong> — brightness, contrast, flip and rotation were what let the detector hold up under realistic lighting and orientation changes. Working through the YOLOv12 training loop and reading the precision / recall / mAP curves taught me how to diagnose a model rather than just trust a single number. Wrapping everything in a simulated AOI dashboard showed me the gap between "a model that scores well" and "an inspection system you could actually run" — throughput, PASS/FAIL logic, and operator-facing alarms all matter.</p>
+      <div class="mt-14 grid md:grid-cols-2 gap-4">
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">Illumination</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Choosing coaxial vs. low-angle ring vs. diffuse light to reveal defects — directly applies the lecture material on lighting geometry and reflection.</p>
         </div>
-        <div class="reveal rounded-2xl p-6 bg-white/[0.03] ring-1 ring-white/10">
-          <h3 class="font-semibold text-white">Contribution</h3>
-          <p class="mt-3 text-sm text-slate-400 leading-relaxed">This is an <strong class="text-slate-200">individual project</strong> — I was responsible for the full pipeline:</p>
-          <ul class="mt-3 space-y-2 text-sm text-slate-400">
-            <li class="flex gap-2"><span class="text-emerald-400">✓</span> Dataset preparation &amp; augmentation (Roboflow)</li>
-            <li class="flex gap-2"><span class="text-emerald-400">✓</span> YOLOv12 training, tuning &amp; evaluation</li>
-            <li class="flex gap-2"><span class="text-emerald-400">✓</span> Inference scripts &amp; metric analysis</li>
-            <li class="flex gap-2"><span class="text-emerald-400">✓</span> Streamlit AOI inspection dashboard</li>
-            <li class="flex gap-2"><span class="text-emerald-400">✓</span> This documentation website</li>
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">Optics — FOV, lens, resolution</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Sizing the field of view, picking a telecentric lens, and computing µm/pixel spatial resolution come from the optics units.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">Camera &amp; acquisition</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Sensor resolution, global vs. rolling shutter, and triggered capture relate to camera-selection and image-acquisition topics.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">Image processing &amp; detection</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Preprocessing (resize / normalise) and the move from classical features to a deep-learning detector extend the image-processing lectures.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">Inspection metrics</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Precision, recall, mAP and the confusion matrix are the evaluation tools taught for judging an inspection system.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-7">
+          <h3 class="text-lg font-bold text-white">System integration &amp; SPC</h3>
+          <p class="mt-2 text-sm text-slate-400 leading-relaxed">Packaging it as an AOI station with yield tracking and a consecutive-fail alarm applies the automation / SPC concepts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 08 REFLECTION ───────── -->
+  <section id="reflection" class="py-28 px-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="reveal max-w-3xl">
+        <div class="sec-num">/ 08</div>
+        <div class="eyebrow mt-3">Reflection &amp; Contribution</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">What I built and learned.</h2>
+      </div>
+      <div class="mt-14 grid lg:grid-cols-2 gap-5">
+        <div class="reveal glass rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white">Reflection</h3>
+          <p class="mt-4 text-slate-400 leading-relaxed">Building this end to end made the course concepts concrete: <span class="text-slate-200 font-medium">data quality and augmentation matter as much as the model</span> — brightness, contrast, flip and rotation are what let the detector hold up under realistic lighting and orientation changes. Working through the YOLOv12 training loop and reading the P / R / mAP curves taught me how to diagnose a model rather than just trust a single number. Wrapping everything in a simulated AOI dashboard showed me the gap between a model that scores well and an inspection system you could actually run — throughput, PASS/FAIL logic and operator-facing alarms all matter.</p>
+        </div>
+        <div class="reveal glass rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white">Contribution</h3>
+          <p class="mt-4 text-slate-400 leading-relaxed">An <span class="text-slate-200 font-medium">individual project</span> — I was responsible for the full pipeline:</p>
+          <ul class="mt-4 space-y-2.5 text-sm text-slate-300">
+            <li class="flex gap-3"><span class="text-accent mt-0.5">—</span> Dataset preparation &amp; augmentation (Roboflow)</li>
+            <li class="flex gap-3"><span class="text-accent mt-0.5">—</span> YOLOv12 training, tuning &amp; evaluation</li>
+            <li class="flex gap-3"><span class="text-accent mt-0.5">—</span> Inference scripts &amp; metric analysis</li>
+            <li class="flex gap-3"><span class="text-accent mt-0.5">—</span> Streamlit AOI inspection dashboard</li>
+            <li class="flex gap-3"><span class="text-accent mt-0.5">—</span> This documentation website</li>
           </ul>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== 10 · REFERENCES ===================== -->
-  <section id="references" class="py-24 px-6 border-t border-white/5 bg-slate-950/40">
-    <div class="max-w-6xl mx-auto reveal">
-      <p class="text-sm font-semibold eyebrow uppercase text-emerald-400">10 — References</p>
-      <h2 class="mt-3 text-3xl sm:text-4xl font-bold text-white">Sources &amp; further reading</h2>
-      <ol class="mt-8 space-y-3 text-slate-400">
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[1]</span><span>Tian, Y. et al. <em class="text-slate-200">YOLOv12: Attention-Centric Real-Time Object Detectors</em>, 2025. <a href="https://arxiv.org/abs/2502.12524" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">arxiv.org/abs/2502.12524</a></span></li>
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[2]</span><span>YOLOv12 reference implementation. <a href="https://github.com/sunsmarterjie/yolov12" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">github.com/sunsmarterjie/yolov12</a></span></li>
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[3]</span><span>Ultralytics YOLO documentation. <a href="https://docs.ultralytics.com" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">docs.ultralytics.com</a></span></li>
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[4]</span><span>Akhatova, A. <em class="text-slate-200">PCB Defects</em> dataset, Kaggle. <a href="https://www.kaggle.com/datasets/akhatova/pcb-defects" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">kaggle.com/datasets/akhatova/pcb-defects</a></span></li>
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[5]</span><span>Roboflow — dataset augmentation &amp; export platform. <a href="https://roboflow.com" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">roboflow.com</a></span></li>
-        <li class="flex gap-3"><span class="text-slate-600 font-mono shrink-0">[6]</span><span>Streamlit — data-app framework used for the AOI dashboard. <a href="https://streamlit.io" target="_blank" rel="noopener" class="text-emerald-400 hover:underline break-all">streamlit.io</a></span></li>
+  <div class="hairline max-w-7xl mx-auto"></div>
+
+  <!-- ───────── 09 REFERENCES ───────── -->
+  <section id="references" class="py-28 px-6 section-bg-soft">
+    <div class="max-w-7xl mx-auto reveal">
+      <div class="max-w-3xl">
+        <div class="sec-num">/ 09</div>
+        <div class="eyebrow mt-3">References</div>
+        <h2 class="mt-5 text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight">Sources &amp; further reading.</h2>
+      </div>
+      <ol class="mt-12 divide-y divide-white/5 border-y border-white/5">
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[1]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">Tian, Y. et al. <em class="text-slate-300">YOLOv12: Attention-Centric Real-Time Object Detectors</em>, 2025.</div>
+            <a href="https://arxiv.org/abs/2502.12524" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">arxiv.org/abs/2502.12524</a>
+          </div>
+        </li>
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[2]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">YOLOv12 reference implementation.</div>
+            <a href="https://github.com/sunsmarterjie/yolov12" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">github.com/sunsmarterjie/yolov12</a>
+          </div>
+        </li>
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[3]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">Ultralytics YOLO documentation.</div>
+            <a href="https://docs.ultralytics.com" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">docs.ultralytics.com</a>
+          </div>
+        </li>
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[4]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">Akhatova, A. <em class="text-slate-300">PCB Defects</em> dataset, Kaggle.</div>
+            <a href="https://www.kaggle.com/datasets/akhatova/pcb-defects" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">kaggle.com/datasets/akhatova/pcb-defects</a>
+          </div>
+        </li>
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[5]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">Roboflow — dataset augmentation &amp; export platform.</div>
+            <a href="https://roboflow.com" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">roboflow.com</a>
+          </div>
+        </li>
+        <li class="py-5 flex gap-6 items-baseline">
+          <span class="text-slate-600 font-mono shrink-0 w-8">[6]</span>
+          <div class="flex-1">
+            <div class="text-white font-medium">Streamlit — data-app framework used for the AOI dashboard.</div>
+            <a href="https://streamlit.io" target="_blank" rel="noopener" class="text-sm text-accent hover:underline break-all">streamlit.io</a>
+          </div>
+        </li>
       </ol>
     </div>
   </section>
 
-  <!-- ===================== FOOTER ===================== -->
-  <footer class="py-14 px-6 border-t border-white/5">
-    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-      <div>
-        <div class="font-bold text-white flex items-center gap-2"><span class="text-emerald-400">◳</span> PCB Defect Detection · YOLOv12</div>
-        <p class="text-sm text-slate-500 mt-1">Machine Vision Inspection — Final Project 2026 · NTPU EE · 411287004 許豐有</p>
+  <!-- ───────── FOOTER ───────── -->
+  <footer class="py-16 px-6 border-t border-white/5">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div>
+          <div class="font-bold text-white flex items-center gap-2.5">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="3" width="18" height="18" rx="2" class="text-accent" />
+              <circle cx="8" cy="8" r="1.2" fill="currentColor" class="text-accent"/>
+              <circle cx="16" cy="8" r="1.2" fill="currentColor" class="text-accent"/>
+              <circle cx="8" cy="16" r="1.2" fill="currentColor" class="text-accent"/>
+              <circle cx="16" cy="16" r="1.2" fill="currentColor" class="text-accent"/>
+            </svg>
+            PCB Defect Detection · YOLOv12
+          </div>
+          <p class="text-sm text-slate-500 mt-2">Machine Vision Inspection — Final Project 2026 · NTPU EE · 411287004 許豐有</p>
+        </div>
+        <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition px-4 py-2.5 rounded-lg">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+          Repository
+        </a>
       </div>
-      <a href="https://github.com/Joshua-fy-Hsu/PCB_Defects_Detection" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 transition px-4 py-2 rounded-lg">
-        <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
-        Repository
-      </a>
+      <p class="mt-8 text-xs text-slate-600 leading-relaxed">Built with YOLOv12 · Ultralytics · PyTorch · Streamlit. Predictions shown are model outputs on held-out test images. Optical specifications (FOV, lens, lighting) describe the proposed AOI station design.</p>
     </div>
-    <p class="max-w-6xl mx-auto mt-8 text-xs text-slate-600">Built with YOLOv12 · Ultralytics · PyTorch · Streamlit. Predictions shown are model outputs on held-out test images. Optical specifications (FOV, lens, lighting) describe the proposed AOI station design.</p>
   </footer>
 
   <script>
@@ -494,7 +845,7 @@ return {<span class="text-emerald-400">"verdict"</span>: verdict, <span class="t
           io.unobserve(e.target);
         }
       });
-    }, { threshold: 0.12 });
+    }, { threshold: 0.10 });
     document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
   </script>
 </body>
